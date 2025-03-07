@@ -4,8 +4,7 @@
 
 A comprehensive cross country race management system built for The Armidale School, featuring real-time race tracking, house points management, and administrative controls.
 
-(access now)(https://golden-torrone-01c6f0.netlify.app/)
-
+[Access Now][https://golden-torrone-01c6f0.netlify.app/]
 
 ## Features
 
