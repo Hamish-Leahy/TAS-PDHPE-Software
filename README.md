@@ -1,5 +1,7 @@
 # TAS Cross Country System
 
+<img width="1305" alt="Screenshot 2025-03-08 at 10 32 57 AM" src="https://github.com/user-attachments/assets/26bad156-6e52-4601-a918-de9fdf92c1c1" />
+
 A comprehensive cross country race management system built for The Armidale School, featuring real-time race tracking, house points management, and administrative controls.
 
 ## Features
@@ -17,11 +19,16 @@ A comprehensive cross country race management system built for The Armidale Scho
 - Real-time house points leaderboard
 - Points backup and restore functionality
 
+<img width="1306" alt="Screenshot 2025-03-08 at 10 33 53 AM" src="https://github.com/user-attachments/assets/5caec885-5afc-4efe-a20b-bcb2be16916f" />
+
 ### Runner Management
 - Add individual runners or bulk import via CSV
 - Assign runners to specific races
 - Filter and search capabilities
 - Age group auto-calculation based on date of birth
+
+<img width="1289" alt="Screenshot 2025-03-08 at 10 33 30 AM" src="https://github.com/user-attachments/assets/9db75a84-7b39-44e8-96fe-a0be6bfc07e3" />
+
 
 ### Administrative Controls
 - Master admin dashboard for system-wide control
