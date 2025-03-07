@@ -1,41 +1,32 @@
 import React, { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Flag, Users, Award, Home, PlusCircle, Settings, HelpCircle, LogOut, Grid } from 'lucide-react';
-import HelpRequestModal from './HelpRequestModal';
-import WaffleMenu from './WaffleMenu';
-import useAuthStore from '../store/authStore';
-import ServiceDisabledOverlay from './ServiceDisabledOverlay';
-import { usePlatformStatus } from '../hooks/usePlatformStatus';
-
-interface NavItem {
-  path: string;
-  label: string;
-  icon: ReactNode;
-}
+import { Activity, Users, ClipboardList, Ruler, Award, FileText, LogOut, HelpCircle, Grid } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import WaffleMenu from '../../components/WaffleMenu';
+import ServiceDisabledOverlay from '../../components/ServiceDisabledOverlay';
+import { usePlatformStatus } from '../../hooks/usePlatformStatus';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const BiometricsLayout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { session, signOut } = useAuthStore();
-  const [showHelpModal, setShowHelpModal] = useState(false);
   const [showWaffleMenu, setShowWaffleMenu] = useState(false);
-  const { status, loading } = usePlatformStatus('cross_country');
+  const { status, loading } = usePlatformStatus('biometrics');
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: <Home size={20} /> },
-    { path: '/finish-line', label: 'Finish Line', icon: <Flag size={20} /> },
-    { path: '/quick-points', label: 'Quick Points', icon: <PlusCircle size={20} /> },
-    { path: '/runners', label: 'Runners', icon: <Users size={20} /> },
-    { path: '/results', label: 'Results', icon: <Award size={20} /> },
-    { path: '/admin', label: 'Admin', icon: <Settings size={20} /> },
+    { path: '/biometrics', label: 'Dashboard', icon: <Activity size={20} /> },
+    { path: '/biometrics/students', label: 'Students', icon: <Users size={20} /> },
+    { path: '/biometrics/test-results', label: 'Test Results', icon: <ClipboardList size={20} /> },
+    { path: '/biometrics/biometrics', label: 'Biometrics', icon: <Ruler size={20} /> },
+    { path: '/biometrics/standards', label: 'Standards', icon: <Award size={20} /> },
+    { path: '/biometrics/reports', label: 'Reports', icon: <FileText size={20} /> },
   ];
 
   const handleSignOut = async () => {
-    await signOut();
+    await supabase.auth.signOut();
     navigate('/login');
   };
 
@@ -60,17 +51,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="h-10"
               />
             </Link>
-            <h1 className="text-xl font-bold">TAS Cross Country</h1>
+            <h1 className="text-xl font-bold">TAS Biometrics</h1>
           </div>
 
           <div className="flex items-center space-x-4">
-            {session && (
-              <span className="text-sm">
-                {session.user.email}
-              </span>
-            )}
             <button
-              onClick={() => setShowHelpModal(true)}
               className="p-2 hover:bg-blue-700 rounded-full transition-colors"
               title="Get Help"
             >
@@ -131,17 +116,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Footer */}
       <footer className="bg-gray-100 border-t border-gray-200 py-4">
         <div className="container mx-auto px-4 text-center text-gray-600 text-sm">
-          &copy; {new Date().getFullYear()} The Armidale School Cross Country System
+          &copy; {new Date().getFullYear()} The Armidale School Biometrics System
         </div>
       </footer>
-
-      {/* Help Request Modal */}
-      <HelpRequestModal
-        isOpen={showHelpModal}
-        onClose={() => setShowHelpModal(false)}
-      />
     </div>
   );
 };
 
-export default Layout;
+export default BiometricsLayout;

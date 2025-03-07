@@ -81,6 +81,36 @@ const SystemStatus = () => {
     }
   };
 
+  const getPlatformIcon = (platform: string) => {
+    switch (platform) {
+      case 'cross_country':
+        return 'Running Track';
+      case 'athletics':
+        return 'Athletics Stadium';
+      case 'biometrics':
+        return 'Health Monitoring';
+      case 'coach':
+        return 'Team Management';
+      default:
+        return 'System Module';
+    }
+  };
+
+  const getPlatformDescription = (platform: string) => {
+    switch (platform) {
+      case 'cross_country':
+        return 'Cross Country race management and tracking';
+      case 'athletics':
+        return 'Athletics carnival and event management';
+      case 'biometrics':
+        return 'Student fitness and health tracking';
+      case 'coach':
+        return 'Team and training management';
+      default:
+        return 'System module';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -131,6 +161,9 @@ const SystemStatus = () => {
                     {platform.platform.replace(/_/g, ' ')}
                   </h3>
                   <p className="text-sm text-gray-400">
+                    {getPlatformDescription(platform.platform)}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
                     Last updated: {new Date(platform.last_updated).toLocaleString()}
                   </p>
                 </div>

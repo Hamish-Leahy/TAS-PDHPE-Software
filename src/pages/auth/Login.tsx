@@ -1,9 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../../lib/supabase';
+import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../../store/authStore';
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { session } = useAuthStore();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session) {
+      navigate('/');
+    }
+  }, [session, navigate]);
+
+  const logLoginAttempt = async (email: string, success: boolean) => {
+    try {
+      await supabase.from('login_attempts').insert({
+        username: email,
+        ip_address: 'Web Client', // Since we're in browser environment
+        user_agent: navigator.userAgent,
+        success: success,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('Error logging login attempt:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -22,6 +48,12 @@ const Login = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+              {error}
+            </div>
+          )}
+          
           <Auth
             supabaseClient={supabase}
             appearance={{
@@ -50,6 +82,15 @@ const Login = () => {
                   password_label: 'Create Password',
                 },
               },
+            }}
+            onError={(error) => {
+              console.error('Auth error:', error);
+              setError('Authentication failed. Please try again.');
+              // Log failed attempt if we can extract the email
+              const emailMatch = error.message.match(/email "([^"]+)"/);
+              if (emailMatch) {
+                logLoginAttempt(emailMatch[1], false);
+              }
             }}
           />
         </div>

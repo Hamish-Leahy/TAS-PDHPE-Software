@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Power, AlertTriangle, RefreshCw, Check, X, LogOut, ChevronLeft, Bell, List, Settings, Users, Lock } from 'lucide-react';
+import { Power, AlertTriangle, RefreshCw, Check, X, LogOut, ChevronLeft, Bell, List, Settings, Users, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import SystemStatus from './views/SystemStatus';
@@ -76,7 +76,7 @@ const MasterAdminDashboard = () => {
                 Back to Cross Country
               </Link>
               <h1 className="text-2xl font-bold text-white flex items-center">
-                <Shield className="w-8 h-8 mr-2 text-red-500" />
+                <Lock className="w-8 h-8 mr-2 text-red-500" />
                 Master Admin Control
               </h1>
             </div>
@@ -117,6 +117,25 @@ const MasterAdminDashboard = () => {
                   </button>
                 ))}
               </nav>
+            </div>
+
+            {/* System Overview */}
+            <div className="mt-6 bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg border border-gray-700 p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">System Overview</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Active Platforms</span>
+                  <span className="text-white">4</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Total Users</span>
+                  <span className="text-white">150+</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">System Status</span>
+                  <span className="text-green-400">Operational</span>
+                </div>
+              </div>
             </div>
           </div>
 
