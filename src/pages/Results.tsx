@@ -4,10 +4,6 @@ import { ArrowLeft, Download, Medal, Trash2, AlertTriangle, FileText, Printer } 
 import { supabase } from '../lib/supabase';
 import { generateResultsPDF } from '../components/PDFGenerator';
 
-// How will this work for the athletics carnival system? 
-//  Implement a variant of this into the Athletics Carnival System. 
-
-
 const Results: React.FC = () => {
   const navigate = useNavigate();
   const [races, setRaces] = useState<any[]>([]);

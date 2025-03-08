@@ -5,6 +5,7 @@ import MasterAdmin from './pages/master-admin/MasterAdmin';
 import BiometricsApp from './pages/biometrics/BiometricsApp';
 import CoachApp from './pages/coach/CoachApp';
 import AthleticsApp from './pages/athletics/AthleticsApp';
+import SwimmingApp from './pages/swimming/SwimmingApp';
 import Login from './pages/auth/Login';
 import PrivateRoute from './components/PrivateRoute';
 import { supabase } from './lib/supabase';
@@ -62,6 +63,14 @@ function App() {
           element={
             <PrivateRoute>
               <AthleticsApp />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/swimming/*"
+          element={
+            <PrivateRoute>
+              <SwimmingApp />
             </PrivateRoute>
           }
         />

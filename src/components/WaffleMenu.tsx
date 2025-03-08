@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Flag, Shield, Activity, Dumbbell, Timer } from 'lucide-react';
+import { Flag, Shield, Activity, Dumbbell, Timer, School as Pool } from 'lucide-react';
 
 interface AppItem {
   path: string;
@@ -52,6 +52,13 @@ const apps: AppItem[] = [
     description: 'Track & field event management',
     icon: <Timer className="w-6 h-6" />,
     iconColor: 'text-amber-600'
+  },
+  {
+    path: '/swimming',
+    name: 'Swimming Carnival',
+    description: 'Swimming time trials and events',
+    icon: <Pool className="w-6 h-6" />,
+    iconColor: 'text-cyan-600'
   }
 ];
 
