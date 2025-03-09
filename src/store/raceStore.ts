@@ -40,6 +40,15 @@ interface RaceState {
   logAdminAction: (action: string, details?: any) => Promise<void>;
 }
 
+const housePoints: Record<string, number> = {
+  'Broughton': 0,
+  'Abbott': 0,
+  'Croft': 0,
+  'Tyrrell': 0,
+  'Green': 0,
+  'Ross': 0
+};
+
 export const useRaceStore = create<RaceState>((set, get) => ({
   runners: [],
   currentRace: {
@@ -249,7 +258,7 @@ export const useRaceStore = create<RaceState>((set, get) => ({
         'Broughton': 0,
         'Abbott': 0,
         'Croft': 0,
-        'Tyrell': 0,
+        'Tyrrell': 0,
         'Green': 0,
         'Ross': 0
       };

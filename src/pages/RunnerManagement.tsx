@@ -5,6 +5,20 @@ import { useRaceStore } from '../store/raceStore';
 import { supabase } from '../lib/supabase';
 import RunnerAssignmentModal from '../components/RunnerAssignmentModal';
 
+const houses = ['Broughton', 'Abbott', 'Croft', 'Tyrrell', 'Green', 'Ross'];
+
+const getHouseColor = (house: string) => {
+  const colors: Record<string, string> = {
+    'Broughton': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    'Abbott': 'bg-blue-100 text-blue-800 border-blue-300',
+    'Croft': 'bg-gray-900 text-white border-gray-700',
+    'Tyrrell': 'bg-red-100 text-red-800 border-red-300',
+    'Green': 'bg-red-100 text-red-800 border-red-300',
+    'Ross': 'bg-green-100 text-green-800 border-green-300'
+  };
+  return colors[house] || 'bg-gray-100 text-gray-800 border-gray-300';
+};
+
 const RunnerManagement: React.FC = () => {
   const navigate = useNavigate();
   const { runners, fetchRunners, addRunner, isLoading, error } = useRaceStore();
@@ -13,13 +27,16 @@ const RunnerManagement: React.FC = () => {
     name: '',
     house: 'Broughton',
     age_group: 'Under 11',
-    date_of_birth: ''
+    date_of_birth: '',
+    gender: 'male'
   });
   
   const [filter, setFilter] = useState({
     house: '',
     age_group: '',
-    race_id: ''
+    race_id: '',
+    gender: '',
+    sortBy: 'name'
   });
 
   const [selectedRunners, setSelectedRunners] = useState<number[]>([]);
@@ -66,19 +83,19 @@ const RunnerManagement: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Calculate age group based on date of birth before submitting
     const calculatedAgeGroup = determineAgeGroup(formData.date_of_birth);
     
     await addRunner({
       ...formData,
-      age_group: calculatedAgeGroup // Override the age group with calculated value
+      age_group: calculatedAgeGroup
     });
     
     setFormData({
       name: '',
       house: 'Broughton',
       age_group: 'Under 11',
-      date_of_birth: ''
+      date_of_birth: '',
+      gender: 'male'
     });
   };
 
@@ -92,24 +109,23 @@ const RunnerManagement: React.FC = () => {
         const csvData = event.target?.result as string;
         const lines = csvData.split('\n');
         
-        // Skip header row
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
           
-          const [name, house, age_group, date_of_birth] = line.split(',');
+          const [name, house, age_group, date_of_birth, gender] = line.split(',');
           
-          if (name && house && age_group && date_of_birth) {
+          if (name && house && age_group && date_of_birth && gender) {
             await addRunner({
               name: name.trim(),
               house: house.trim(),
               age_group: age_group.trim(),
-              date_of_birth: date_of_birth.trim()
+              date_of_birth: date_of_birth.trim(),
+              gender: gender.trim().toLowerCase()
             });
           }
         }
         
-        // Refresh the list
         fetchRunners();
       } catch (error) {
         console.error('Error processing CSV:', error);
@@ -137,10 +153,8 @@ const RunnerManagement: React.FC = () => {
 
   const handleSelectAll = () => {
     if (selectedRunners.length === filteredRunners.length) {
-      // If all are selected, deselect all
       setSelectedRunners([]);
     } else {
-      // Otherwise, select all filtered runners
       setSelectedRunners(filteredRunners.map(runner => runner.id!));
     }
   };
@@ -158,7 +172,6 @@ const RunnerManagement: React.FC = () => {
     if (selectedRunners.length === 0) return;
 
     try {
-      // Delete each selected runner
       for (const id of selectedRunners) {
         const { error } = await supabase
           .from('runners')
@@ -168,11 +181,9 @@ const RunnerManagement: React.FC = () => {
         if (error) throw error;
       }
       
-      // Show success message
       setDeleteSuccess(`Successfully deleted ${selectedRunners.length} runner${selectedRunners.length > 1 ? 's' : ''}`);
       setTimeout(() => setDeleteSuccess(null), 3000);
       
-      // Clear selection and refresh list
       setSelectedRunners([]);
       fetchRunners();
     } catch (err) {
@@ -224,7 +235,6 @@ const RunnerManagement: React.FC = () => {
 
   const determineAgeGroup = (dateOfBirth: string) => {
     const age = calculateAge(dateOfBirth);
-    // Adjust age group calculation to be more accurate
     if (age <= 11) return 'Under 11';
     if (age <= 12) return 'Under 12';
     if (age <= 13) return 'Under 13';
@@ -239,11 +249,22 @@ const RunnerManagement: React.FC = () => {
     return (
       (filter.house === '' || runner.house === filter.house) &&
       (filter.age_group === '' || runner.age_group === filter.age_group) &&
+      (filter.gender === '' || runner.gender === filter.gender) &&
       (filter.race_id === '' || String(runner.race_id) === filter.race_id || (filter.race_id === 'unassigned' && !runner.race_id))
     );
+  }).sort((a, b) => {
+    switch (filter.sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'age':
+        return new Date(b.date_of_birth).getTime() - new Date(a.date_of_birth).getTime();
+      case 'gender':
+        return a.gender.localeCompare(b.gender);
+      default:
+        return 0;
+    }
   });
 
-  const houses = ['Broughton', 'Abbott', 'Croft', 'Tyrell', 'Green', 'Ross'];
   const ageGroups = [
     'Under 11',
     'Under 12',
@@ -254,18 +275,6 @@ const RunnerManagement: React.FC = () => {
     'Under 17',
     'Under 18'
   ];
-
-  const getHouseColor = (house: string) => {
-    const colors: Record<string, string> = {
-      'Broughton': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      'Abbott': 'bg-blue-100 text-blue-800 border-blue-300',
-      'Croft': 'bg-gray-900 text-white border-gray-700',
-      'Tyrell': 'bg-red-100 text-red-800 border-red-300',
-      'Green': 'bg-red-100 text-red-800 border-red-300',
-      'Ross': 'bg-green-100 text-green-800 border-green-300'
-    };
-    return colors[house] || 'bg-gray-100 text-gray-800 border-gray-300';
-  };
 
   return (
     <div className="space-y-6">
@@ -299,7 +308,6 @@ const RunnerManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
@@ -334,7 +342,6 @@ const RunnerManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Runner Assignment Modal */}
       <RunnerAssignmentModal
         isOpen={showAssignRaceModal}
         onClose={() => setShowAssignRaceModal(false)}
@@ -344,7 +351,6 @@ const RunnerManagement: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Add Runner Form */}
         <div className="bg-white p-6 rounded-lg shadow-md md:col-span-1">
           <h2 className="text-xl font-semibold mb-4">Add Runner</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -375,6 +381,23 @@ const RunnerManagement: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+            </div>
+            <div>
+              <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-1">
+                Gender
+              </label>
+              <select
+                id="gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="non-binary">Non-binary</option>
+              </select>
             </div>
             <div>
               <label htmlFor="house" className="block text-sm font-medium text-gray-700 mb-1">
@@ -419,7 +442,7 @@ const RunnerManagement: React.FC = () => {
           <div className="mt-8">
             <h3 className="text-lg font-medium mb-2">Bulk Upload</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Upload a CSV file with columns: name, house, age_group, date_of_birth
+              Upload a CSV file with columns: name, house, age_group, date_of_birth, gender
             </p>
             <label className="block">
               <span className="sr-only">Choose CSV file</span>
@@ -438,7 +461,6 @@ const RunnerManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* Runner List */}
         <div className="bg-white p-6 rounded-lg shadow-md md:col-span-2">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Runners</h2>
@@ -494,18 +516,25 @@ const RunnerManagement: React.FC = () => {
               ))}
             </select>
             <select
-              name="race_id"
-              value={filter.race_id}
+              name="gender"
+              value={filter.gender}
               onChange={handleFilterChange}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">All Races</option>
-              <option value="unassigned">Unassigned</option>
-              {races.map(race => (
-                <option key={race.id} value={race.id}>
-                  {race.name}
-                </option>
-              ))}
+              <option value="">All Genders</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="non-binary">Non-binary</option>
+            </select>
+            <select
+              name="sortBy"
+              value={filter.sortBy}
+              onChange={handleFilterChange}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="name">Sort by Name</option>
+              <option value="age">Sort by Age</option>
+              <option value="gender">Sort by Gender</option>
             </select>
           </div>
 
@@ -537,6 +566,9 @@ const RunnerManagement: React.FC = () => {
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                         Age Group
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                        Gender
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                         House
@@ -574,6 +606,9 @@ const RunnerManagement: React.FC = () => {
                           <div className="text-sm text-gray-500">{runner.age_group}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 capitalize">{runner.gender}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${getHouseColor(runner.house)}`}>
                             {runner.house}
                           </span>
@@ -602,23 +637,22 @@ const RunnerManagement: React.FC = () => {
           {filteredRunners.length > 0 && (
             <div className="mt-4 text-sm text-gray-500">
               Showing {filteredRunners.length} runner{filteredRunners.length !== 1 ? 's' : ''} 
-              {(filter.house || filter.age_group || filter.race_id) && ' with applied filters'}
+              {(filter.house || filter.age_group || filter.race_id || filter.gender) && ' with applied filters'}
               {selectedRunners.length > 0 && ` (${selectedRunners.length} selected)`}
             </div>
           )}
         </div>
       </div>
 
-      {/* Instructions */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Instructions</h2>
         <div className="space-y-4">
           <div>
             <h3 className="font-medium text-lg">Adding Runners</h3>
             <ul className="list-disc list-inside space-y-2 pl-4 mt-2">
-              <li>Fill out the form with name, date of birth, and house</li>
+              <li>Fill out the form with name, date of birth, gender, and house</li>
               <li>Age group will be automatically calculated based on date of birth</li>
-              <li>For bulk uploads, prepare a CSV file with headers: name, house, age_group, date_of_birth</li>
+              <li>For bulk uploads, prepare a CSV file with headers: name, house, age_group, date_of_birth, gender</li>
               <li>Upload the CSV file using the bulk upload option</li>
             </ul>
           </div>
@@ -626,7 +660,8 @@ const RunnerManagement: React.FC = () => {
           <div>
             <h3 className="font-medium text-lg">Managing Runners</h3>
             <ul className="list-disc list-inside space-y-2 pl-4 mt-2">
-              <li>Use the filters to find specific runners by house, age group, or race</li>
+              <li>Use the filters to find specific runners by house, age group, gender, or race</li>
+              <li>Sort runners by name, age, or gender using the sort dropdown</li>
               <li>Select runners by checking the boxes next to their names</li>
               <li>Click on a runner's name to view and edit their detailed information</li>
               <li>Assign selected runners to races using the "Assign to Races" button</li>

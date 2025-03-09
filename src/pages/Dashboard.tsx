@@ -1,8 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Flag, Award, ChevronDown, Plus, RefreshCw } from 'lucide-react';
+import { 
+  Play, 
+  Pause, 
+  Flag, 
+  Award, 
+  ChevronDown, 
+  Plus, 
+  RefreshCw,
+  Timer,
+  Users,
+  Calendar,
+  TrendingUp,
+  ChevronRight,
+  Clock,
+  AlertTriangle
+} from 'lucide-react';
 import { useRaceStore } from '../store/raceStore';
 import { supabase } from '../lib/supabase';
+
+interface DashboardStats {
+  totalRunners: number;
+  totalRaces: number;
+  totalPoints: number;
+  activeRace: string;
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +38,12 @@ const Dashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalRunners: 0,
+    totalRaces: 0,
+    totalPoints: 0,
+    activeRace: ''
+  });
 
   useEffect(() => {
     fetchData();
@@ -23,11 +51,47 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     setRefreshing(true);
-    await Promise.all([
-      fetchHousePoints(),
-      fetchActiveRaces()
-    ]);
+    try {
+      await Promise.all([
+        fetchHousePoints(),
+        fetchActiveRaces(),
+        fetchStats()
+      ]);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to fetch data. Please try refreshing.');
+    }
     setRefreshing(false);
+  };
+
+  const fetchStats = async () => {
+    try {
+      // Get total runners
+      const { count: runnersCount } = await supabase
+        .from('runners')
+        .select('*', { count: 'exact', head: true });
+
+      // Get total races
+      const { data: races } = await supabase
+        .from('race_events')
+        .select('*');
+
+      // Get total points
+      const { data: points } = await supabase
+        .from('house_points')
+        .select('points');
+
+      const totalPoints = points?.reduce((sum, record) => sum + record.points, 0) || 0;
+
+      setStats({
+        totalRunners: runnersCount || 0,
+        totalRaces: races?.length || 0,
+        totalPoints: totalPoints,
+        activeRace: currentRace.name || 'None'
+      });
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+    }
   };
 
   const fetchHousePoints = async () => {
@@ -41,7 +105,7 @@ const Dashboard = () => {
           'Broughton': 0,
           'Abbott': 0,
           'Croft': 0,
-          'Tyrell': 0,
+          'Tyrrell': 0,
           'Green': 0,
           'Ross': 0
         };
@@ -148,11 +212,16 @@ const Dashboard = () => {
       'Broughton': 'bg-yellow-500', // Yellow
       'Abbott': 'bg-blue-900',      // Navy blue
       'Croft': 'bg-black',          // Black
-      'Tyrell': 'bg-red-900',       // Maroon
+      'Tyrrell': 'bg-red-900',      // Maroon
       'Green': 'bg-red-600',        // Red
       'Ross': 'bg-green-600'        // Green
     };
     return colors[house] || 'bg-gray-500';
+  };
+
+  const getMaxPoints = () => {
+    const points = Object.values(housePoints);
+    return points.length > 0 ? Math.max(...points) : 0;
   };
 
   return (
@@ -163,26 +232,26 @@ const Dashboard = () => {
           <button
             onClick={handleStartRace}
             disabled={!currentRace.id || currentRace.status === 'active' || isLoading}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center disabled:opacity-50"
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50"
           >
             <Play size={18} className="mr-2" /> Start Race
           </button>
           <button
             onClick={handleStopRace}
             disabled={!currentRace.id || currentRace.status !== 'active' || isLoading}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded flex items-center disabled:opacity-50"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50"
           >
             <Pause size={18} className="mr-2" /> End Race
           </button>
           <button
             onClick={() => navigate('/finish-line')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
           >
             <Flag size={18} className="mr-2" /> Finish Line
           </button>
           <button
             onClick={() => navigate('/results')}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded flex items-center"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center"
           >
             <Award size={18} className="mr-2" /> Results
           </button>
@@ -190,21 +259,72 @@ const Dashboard = () => {
       </div>
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
           {success}
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
         </div>
       )}
 
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">Active Race</p>
+              <h3 className="text-xl font-bold mt-2">{stats.activeRace}</h3>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-full">
+              <Timer className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">Total Races</p>
+              <h3 className="text-xl font-bold mt-2">{stats.totalRaces}</h3>
+            </div>
+            <div className="p-3 bg-green-100 rounded-full">
+              <Calendar className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">Total Runners</p>
+              <h3 className="text-xl font-bold mt-2">{stats.totalRunners}</h3>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-full">
+              <Users className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">Total Points</p>
+              <h3 className="text-xl font-bold mt-2">{stats.totalPoints}</h3>
+            </div>
+            <div className="p-3 bg-yellow-100 rounded-full">
+              <TrendingUp className="w-6 h-6 text-yellow-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Create Race Form */}
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">Create New Race</h2>
             <button
               onClick={fetchData}
@@ -226,7 +346,7 @@ const Dashboard = () => {
                 id="raceName"
                 value={raceName}
                 onChange={(e) => setRaceName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., Junior Boys 3km"
                 required
               />
@@ -240,27 +360,27 @@ const Dashboard = () => {
                 id="raceDate"
                 value={raceDate}
                 onChange={(e) => setRaceDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center"
             >
               <Plus size={18} className="mr-2" />
               {isLoading ? 'Creating...' : 'Create Race'}
             </button>
           </form>
 
-          {/* Race Selection Dropdown */}
+          {/* Race Selection */}
           <div className="mt-6">
             <h3 className="text-lg font-medium mb-2">Select Existing Race</h3>
             <div className="relative">
               <button
                 onClick={() => setShowRaceDropdown(!showRaceDropdown)}
-                className="w-full flex justify-between items-center px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+                className="w-full flex justify-between items-center px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50"
               >
                 <span>
                   {currentRace.id
@@ -273,30 +393,32 @@ const Dashboard = () => {
               </button>
               
               {showRaceDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                   {activeRaces.length > 0 ? (
                     activeRaces.map(race => (
                       <button
                         key={race.id}
                         onClick={() => handleSelectRace(race.id)}
-                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex justify-between items-center"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0"
                       >
-                        <div>
-                          <div className="font-medium">{race.name}</div>
-                          <div className="text-sm text-gray-500">
-                            {new Date(race.date).toLocaleDateString()}
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium">{race.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {new Date(race.date).toLocaleDateString()}
+                            </div>
                           </div>
+                          <span className={`px-2 py-1 text-xs rounded-full 
+                            ${race.status === 'active' ? 'bg-green-100 text-green-800' : 
+                              race.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                              'bg-yellow-100 text-yellow-800'}`}>
+                            {race.status}
+                          </span>
                         </div>
-                        <span className={`px-2 py-1 text-xs rounded-full 
-                          ${race.status === 'active' ? 'bg-green-100 text-green-800' : 
-                            race.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
-                            'bg-yellow-100 text-yellow-800'}`}>
-                          {race.status}
-                        </span>
                       </button>
                     ))
                   ) : (
-                    <div className="px-4 py-2 text-gray-500">No races available</div>
+                    <div className="px-4 py-3 text-gray-500">No races available</div>
                   )}
                 </div>
               )}
@@ -306,94 +428,112 @@ const Dashboard = () => {
 
         {/* House Points */}
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">House Points</h2>
-          <div className="space-y-4">
+          <h2 className="text-xl font-semibold mb-6">House Points</h2>
+          <div className="space-y-6">
             {Object.entries(housePoints)
               .sort((a, b) => b[1] - a[1])
-              .map(([house, points]) => (
-                <div key={house} className="flex items-center">
-                  <div className={`w-4 h-4 rounded-full ${getHouseColor(house)} mr-2`}></div>
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-1">
-                      <span className="font-medium">{house}</span>
-                      <span className="font-bold">{points} pts</span>
+              .map(([house, points], index) => {
+                const maxPoints = getMaxPoints();
+                const percentage = maxPoints > 0 ? (points / maxPoints) * 100 : 0;
+                
+                return (
+                  <div key={house} className="relative">
+                    <div className="flex items-center mb-2">
+                      <div className={`w-4 h-4 rounded-full ${getHouseColor(house)} mr-3`}></div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{house}</span>
+                          <span className="font-bold">{points} pts</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div 
-                        className={`h-2.5 rounded-full ${getHouseColor(house)}`} 
-                        style={{ width: `${Math.min(100, (points / 100) * 100)}%` }}
+                        className={`h-full ${getHouseColor(house)} transition-all duration-500`} 
+                        style={{ width: `${percentage}%` }}
                       ></div>
                     </div>
+                    {index === 0 && (
+                      <div className="absolute -right-2 -top-2">
+                        <Award className="w-5 h-5 text-yellow-500" />
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
           </div>
         </div>
       </div>
 
-      {/* Recent Races */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Recent Races</h2>
-        {activeRaces.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Race Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {activeRaces.map((race) => (
-                  <tr key={race.id} className={currentRace.id === race.id ? 'bg-blue-50' : ''}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{race.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">
-                        {new Date(race.date).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${race.status === 'active' ? 'bg-green-100 text-green-800' : 
-                          race.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
-                          'bg-yellow-100 text-yellow-800'}`}>
-                        {race.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button 
-                        onClick={() => handleSelectRace(race.id)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      >
-                        Select
-                      </button>
-                      <button 
-                        onClick={() => navigate('/results')}
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        View Results
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Recent Activity */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">Recent Races</h2>
+            <button
+              onClick={() => navigate('/results')}
+              className="text-blue-600 hover:text-blue-800 flex items-center"
+            >
+              View All
+              <ChevronRight size={16} className="ml-1" />
+            </button>
           </div>
-        ) : (
-          <p className="text-gray-500 italic">No races have been created yet.</p>
-        )}
+
+          <div className="space-y-4">
+            {activeRaces.slice(0, 5).map(race => (
+              <div key={race.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div className="font-medium">{race.name}</div>
+                  <div className="text-sm text-gray-500">
+                    {new Date(race.date).toLocaleDateString()}
+                  </div>
+                </div>
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  race.status === 'active' ? 'bg-green-100 text-green-800' : 
+                  race.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {race.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">System Status</h2>
+            <Clock size={20} className="text-gray-400" />
+          </div>
+
+          <div className="space-y-4">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                <h3 className="font-medium text-green-800">System Online</h3>
+              </div>
+              <p className="mt-1 text-sm text-green-600">All systems operating normally</p>
+            </div>
+
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                <h3 className="font-medium text-blue-800">Last Backup</h3>
+              </div>
+              <p className="mt-1 text-sm text-blue-600">{new Date().toLocaleString()}</p>
+            </div>
+
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertTriangle size={16} className="text-yellow-600 mr-2" />
+                <h3 className="font-medium text-yellow-800">Important Notice</h3>
+              </div>
+              <p className="mt-1 text-sm text-yellow-600">
+                Remember to save results after each race completion
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

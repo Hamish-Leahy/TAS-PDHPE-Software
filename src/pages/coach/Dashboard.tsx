@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Calendar, 
@@ -10,7 +11,6 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { useNavigate } from 'react-router-dom';
 
 interface TeamSummary {
   id: string;
@@ -25,6 +25,13 @@ interface TeamSummary {
   } | null;
 }
 
+interface DashboardStats {
+  totalTeams: number;
+  totalPlayers: number;
+  upcomingSessions: number;
+  attendanceRate: number;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [teams, setTeams] = useState<TeamSummary[]>([]);
@@ -33,6 +40,12 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalTeams: 0,
+    totalPlayers: 0,
+    upcomingSessions: 0,
+    attendanceRate: 0
+  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -44,7 +57,8 @@ const Dashboard = () => {
       await Promise.all([
         fetchTeams(),
         fetchUpcomingSessions(),
-        fetchRecentAttendance()
+        fetchRecentAttendance(),
+        fetchStats()
       ]);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -55,65 +69,133 @@ const Dashboard = () => {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      // Get total teams
+      const { count: teamsCount } = await supabase
+        .from('teams')
+        .select('*', { count: 'exact', head: true });
+
+      // Get total players
+      const { count: playersCount } = await supabase
+        .from('team_players')
+        .select('*', { count: 'exact', head: true });
+
+      // Get upcoming sessions count
+      const { count: sessionsCount } = await supabase
+        .from('training_sessions')
+        .select('*', { count: 'exact', head: true })
+        .gte('date', new Date().toISOString().split('T')[0])
+        .eq('status', 'scheduled');
+
+      // Calculate attendance rate
+      const { data: attendanceData } = await supabase
+        .from('attendance_records')
+        .select('status');
+
+      const totalAttendance = attendanceData?.length || 0;
+      const presentCount = attendanceData?.filter(record => record.status === 'present').length || 0;
+      const attendanceRate = totalAttendance > 0 ? (presentCount / totalAttendance) * 100 : 0;
+
+      setStats({
+        totalTeams: teamsCount || 0,
+        totalPlayers: playersCount || 0,
+        upcomingSessions: sessionsCount || 0,
+        attendanceRate: attendanceRate
+      });
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+    }
+  };
+
   const fetchTeams = async () => {
-    const { data: teamsData, error } = await supabase
-      .from('teams')
-      .select(`
-        id,
-        name,
-        sport,
-        age_group,
-        team_players (count)
-      `);
+    try {
+      const { data: teamsData } = await supabase
+        .from('teams')
+        .select(`
+          id,
+          name,
+          sport,
+          age_group,
+          team_players (count)
+        `);
 
-    if (error) throw error;
+      if (teamsData) {
+        const teams = teamsData.map(team => ({
+          ...team,
+          player_count: team.team_players[0].count,
+          next_session: null // Will be populated when we fetch sessions
+        }));
 
-    const teams = teamsData?.map(team => ({
-      ...team,
-      player_count: team.team_players[0].count,
-      next_session: null // Will be populated when training sessions are implemented
-    }));
+        // Get next session for each team
+        for (const team of teams) {
+          const { data: sessionData } = await supabase
+            .from('training_sessions')
+            .select('*')
+            .eq('team_id', team.id)
+            .gte('date', new Date().toISOString().split('T')[0])
+            .order('date', { ascending: true })
+            .limit(1);
 
-    setTeams(teams || []);
+          if (sessionData && sessionData[0]) {
+            team.next_session = {
+              date: sessionData[0].date,
+              time: sessionData[0].start_time,
+              location: sessionData[0].location
+            };
+          }
+        }
+
+        setTeams(teams);
+      }
+    } catch (err) {
+      console.error('Error fetching teams:', err);
+    }
   };
 
   const fetchUpcomingSessions = async () => {
-    const { data, error } = await supabase
-      .from('training_sessions')
-      .select(`
-        id,
-        date,
-        start_time,
-        end_time,
-        location,
-        teams (name)
-      `)
-      .gte('date', new Date().toISOString().split('T')[0])
-      .order('date')
-      .order('start_time')
-      .limit(5);
+    try {
+      const { data } = await supabase
+        .from('training_sessions')
+        .select(`
+          id,
+          date,
+          start_time,
+          end_time,
+          location,
+          teams (name)
+        `)
+        .gte('date', new Date().toISOString().split('T')[0])
+        .order('date')
+        .order('start_time')
+        .limit(5);
 
-    if (error) throw error;
-    setUpcomingSessions(data || []);
+      setUpcomingSessions(data || []);
+    } catch (err) {
+      console.error('Error fetching upcoming sessions:', err);
+    }
   };
 
   const fetchRecentAttendance = async () => {
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .select(`
-        id,
-        session_id,
-        status,
-        training_sessions (
-          date,
-          teams (name)
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(5);
+    try {
+      const { data } = await supabase
+        .from('attendance_records')
+        .select(`
+          id,
+          session_id,
+          status,
+          training_sessions (
+            date,
+            teams (name)
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-    if (error) throw error;
-    setRecentAttendance(data || []);
+      setRecentAttendance(data || []);
+    } catch (err) {
+      console.error('Error fetching attendance records:', err);
+    }
   };
 
   return (
@@ -142,43 +224,46 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Total Teams</p>
-              <h3 className="text-3xl font-bold mt-2">{teams.length}</h3>
+              <h3 className="text-3xl font-bold mt-2">{stats.totalTeams}</h3>
             </div>
             <div className="p-3 bg-blue-100 rounded-full">
               <Users className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">Total Players</p>
+              <h3 className="text-3xl font-bold mt-2">{stats.totalPlayers}</h3>
+            </div>
+            <div className="p-3 bg-green-100 rounded-full">
+              <Users className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Upcoming Sessions</p>
-              <h3 className="text-3xl font-bold mt-2">{upcomingSessions.length}</h3>
-            </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <Calendar className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm">Recent Attendance</p>
-              <h3 className="text-3xl font-bold mt-2">{recentAttendance.length}</h3>
+              <h3 className="text-3xl font-bold mt-2">{stats.upcomingSessions}</h3>
             </div>
             <div className="p-3 bg-purple-100 rounded-full">
-              <ClipboardCheck className="w-6 h-6 text-purple-600" />
+              <Calendar className="w-6 h-6 text-purple-600" />
             </div>
           </div>
         </div>
+
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm">Training Plans</p>
-              <h3 className="text-3xl font-bold mt-2">5</h3>
+              <p className="text-gray-500 text-sm">Attendance Rate</p>
+              <h3 className="text-3xl font-bold mt-2">{stats.attendanceRate.toFixed(1)}%</h3>
             </div>
             <div className="p-3 bg-yellow-100 rounded-full">
-              <FileText className="w-6 h-6 text-yellow-600" />
+              <ClipboardCheck className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -217,7 +302,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Upcoming Sessions */}
+      {/* Upcoming Sessions and Recent Attendance */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow-md">
           <div className="p-6">
@@ -248,12 +333,11 @@ const Dashboard = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">No upcoming sessions</p>
+              <p className="text-gray-500 text-center py-4">No upcoming sessions scheduled</p>
             )}
           </div>
         </div>
 
-        {/* Recent Attendance */}
         <div className="bg-white rounded-lg shadow-md">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">

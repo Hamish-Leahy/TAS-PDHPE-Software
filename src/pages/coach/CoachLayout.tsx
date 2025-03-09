@@ -38,86 +38,88 @@ const CoachLayout: React.FC<LayoutProps> = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-blue-800 text-white shadow-md">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Link to="/">
-              <img 
-                src="https://boardingexpo.com.au/wp-content/uploads/TAS_Logo_ExtHoriz_FullCol_RGB.jpg" 
-                alt="TAS Logo" 
-                className="h-10"
-              />
-            </Link>
-            <h1 className="text-xl font-bold">TAS Coach Dashboard</h1>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <button
-              className="p-2 hover:bg-blue-700 rounded-full transition-colors"
-              title="Get Help"
-            >
-              <HelpCircle size={20} />
-            </button>
-            <button
-              onClick={handleSignOut}
-              className="p-2 hover:bg-blue-700 rounded-full transition-colors"
-              title="Sign Out"
-            >
-              <LogOut size={20} />
-            </button>
-            <div className="relative">
-              <button
-                onClick={() => setShowWaffleMenu(!showWaffleMenu)}
-                className="p-2 hover:bg-blue-700 rounded-full transition-colors"
-                title="TAS Apps"
-              >
-                <Grid size={20} />
-              </button>
-              
-              <WaffleMenu 
-                isOpen={showWaffleMenu} 
-                onClose={() => setShowWaffleMenu(false)} 
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <nav className="w-64 bg-white shadow-md">
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <nav className="w-64 bg-[#1E2633] shadow-md flex flex-col">
+        <div className="flex-1">
           <ul className="py-4">
             {navItems.map((item) => (
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`flex items-center px-6 py-3 hover:bg-blue-50 transition-colors ${
-                    location.pathname === item.path ? 'bg-blue-100 border-l-4 border-blue-600' : ''
+                  className={`flex items-center px-6 py-3 text-gray-300 hover:bg-[#2A3547] hover:text-white transition-colors ${
+                    location.pathname === item.path ? 'bg-[#2A3547] text-white border-l-4 border-white' : ''
                   }`}
                 >
-                  <span className="mr-3 text-blue-600">{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span className="mr-3">{item.icon}</span>
+                  <span className="font-medium">{item.label}</span>
                 </Link>
               </li>
             ))}
           </ul>
-        </nav>
+        </div>
 
-        {/* Page content */}
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-[#2A3547]">
+          <div className="text-center text-gray-400 text-sm">
+            &copy; {new Date().getFullYear()} The Armidale School
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="bg-[#1E2633] text-white shadow-md">
+          <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div className="flex items-center space-x-6">
+              <Link to="/" className="flex-shrink-0">
+                <img 
+                  src="https://as.edu.au/wp-content/uploads/2022/12/TAS-Logo-Horizontal-White-472w-x-300h-300x191.png" 
+                  alt="TAS Logo" 
+                  className="h-12"
+                />
+              </Link>
+              <h1 className="text-2xl font-bold tracking-wide">TAS Coach Dashboard</h1>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <button
+                className="p-2 hover:bg-[#2A3547] rounded-full transition-colors"
+                title="Get Help"
+              >
+                <HelpCircle size={20} />
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="p-2 hover:bg-[#2A3547] rounded-full transition-colors"
+                title="Sign Out"
+              >
+                <LogOut size={20} />
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowWaffleMenu(!showWaffleMenu)}
+                  className="p-2 hover:bg-[#2A3547] rounded-full transition-colors"
+                  title="TAS Apps"
+                >
+                  <Grid size={20} />
+                </button>
+                
+                <WaffleMenu 
+                  isOpen={showWaffleMenu} 
+                  onClose={() => setShowWaffleMenu(false)} 
+                />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
         <main className="flex-1 p-6">
           {children}
         </main>
       </div>
-
-      {/* Footer */}
-      <footer className="bg-gray-100 border-t border-gray-200 py-4">
-        <div className="container mx-auto px-4 text-center text-gray-600 text-sm">
-          &copy; {new Date().getFullYear()} The Armidale School Coach Dashboard
-        </div>
-      </footer>
     </div>
   );
 };

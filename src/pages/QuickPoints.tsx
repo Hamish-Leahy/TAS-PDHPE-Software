@@ -29,7 +29,7 @@ const QuickPoints: React.FC = () => {
           'Broughton': 0,
           'Abbott': 0,
           'Croft': 0,
-          'Tyrell': 0,
+          'Tyrrell': 0,
           'Green': 0,
           'Ross': 0
         };
@@ -110,7 +110,7 @@ const QuickPoints: React.FC = () => {
         text: 'text-white',
         hover: 'hover:bg-gray-900'
       },
-      'Tyrell': { 
+      'Tyrrell': { 
         bg: 'bg-red-900', 
         text: 'text-white',
         hover: 'hover:bg-red-950'
