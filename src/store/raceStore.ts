@@ -30,6 +30,7 @@ interface RaceState {
   recordFinish: (id: number) => Promise<void>;
   undoLastFinish: () => Promise<void>;
   createRace: (name: string, date: string) => Promise<void>;
+  setCurrentRace: (race: any) => void;
   updateRaceStatus: (status: string) => Promise<void>;
   calculateHousePoints: () => Promise<void>;
   addQuickHousePoint: (house: string) => Promise<void>;
@@ -39,15 +40,6 @@ interface RaceState {
   restoreHousePoints: (backupData: string) => Promise<void>;
   logAdminAction: (action: string, details?: any) => Promise<void>;
 }
-
-const housePoints: Record<string, number> = {
-  'Broughton': 0,
-  'Abbott': 0,
-  'Croft': 0,
-  'Tyrrell': 0,
-  'Green': 0,
-  'Ross': 0
-};
 
 export const useRaceStore = create<RaceState>((set, get) => ({
   runners: [],
@@ -60,6 +52,17 @@ export const useRaceStore = create<RaceState>((set, get) => ({
   finishOrder: [],
   isLoading: false,
   error: null,
+
+  setCurrentRace: (race) => {
+    set({ 
+      currentRace: {
+        id: race.id,
+        name: race.name,
+        date: race.date,
+        status: race.status
+      }
+    });
+  },
 
   fetchRunners: async () => {
     set({ isLoading: true, error: null });
@@ -196,19 +199,16 @@ export const useRaceStore = create<RaceState>((set, get) => ({
       
       if (error) throw error;
       
+      const newRace = data[0];
       set({ 
         currentRace: {
-          id: data[0].id,
-          name: data[0].name,
-          date: data[0].date,
-          status: data[0].status
+          id: newRace.id,
+          name: newRace.name,
+          date: newRace.date,
+          status: newRace.status
         },
-        runners: [],
-        finishOrder: [],
         isLoading: false 
       });
-      
-      return data[0];
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
       throw error;
@@ -217,7 +217,6 @@ export const useRaceStore = create<RaceState>((set, get) => ({
 
   updateRaceStatus: async (status) => {
     const { currentRace } = get();
-    
     if (!currentRace.id) {
       set({ error: 'No active race', isLoading: false });
       return;
@@ -247,47 +246,82 @@ export const useRaceStore = create<RaceState>((set, get) => ({
   calculateHousePoints: async () => {
     set({ isLoading: true, error: null });
     try {
-      const { runners } = get();
+      const { runners, currentRace } = get();
       const finishedRunners = runners.filter(r => r.position !== null);
       
-      finishedRunners.sort((a, b) => 
-        (a.position || Infinity) - (b.position || Infinity)
-      );
+      // Group runners by age group
+      const runnersByAgeGroup: Record<string, Runner[]> = {};
+      finishedRunners.forEach(runner => {
+        if (!runnersByAgeGroup[runner.age_group]) {
+          runnersByAgeGroup[runner.age_group] = [];
+        }
+        runnersByAgeGroup[runner.age_group].push(runner);
+      });
       
+      // Initialize house points
       const housePoints: Record<string, number> = {
         'Broughton': 0,
         'Abbott': 0,
         'Croft': 0,
-        'Tyrrell': 0,
+        'Tyrell': 0,
         'Green': 0,
         'Ross': 0
       };
-      
-      finishedRunners.forEach((runner, index) => {
-        if (index < 10 && runner.house) {
-          housePoints[runner.house] += (10 - index);
+
+      // Process each age group
+      Object.values(runnersByAgeGroup).forEach(groupRunners => {
+        // Sort runners by position within their age group
+        groupRunners.sort((a, b) => (a.position || 0) - (b.position || 0));
+
+        // Award points for top 20 positions
+        groupRunners.slice(0, 20).forEach((runner, index) => {
+          if (runner.house) {
+            // Position points: 1st = 22 points, 2nd = 21 points, etc.
+            const positionPoints = 22 - index;
+            housePoints[runner.house] += positionPoints;
+          }
+        });
+      });
+
+      // Award completion points
+      finishedRunners.forEach(runner => {
+        if (runner.house && runner.running_time_seconds) {
+          // Check if runner completed first lap (2km) - assume 20 minutes is cutoff
+          if (runner.running_time_seconds <= 1200) {
+            housePoints[runner.house] += 1; // 1 point for completing first lap
+          }
+          
+          // Check if runner completed full course (4km)
+          if (runner.running_time_seconds > 0) {
+            housePoints[runner.house] += 2; // 2 points for completing full course
+          }
         }
       });
-      
+
+      // Save points to database
       for (const [house, points] of Object.entries(housePoints)) {
         if (points > 0) {
           const { error } = await supabase
             .from('house_points')
             .insert({
               house,
-              points
+              points,
+              race_id: currentRace.id
             });
           
           if (error) throw error;
         }
       }
-      
+
+      // Log the action
       await get().logAdminAction('calculate_house_points', {
-        race_id: get().currentRace.id,
-        race_name: get().currentRace.name,
-        points_awarded: housePoints
+        race_id: currentRace.id,
+        race_name: currentRace.name,
+        points_awarded: housePoints,
+        total_runners: finishedRunners.length,
+        timestamp: new Date().toISOString()
       });
-      
+
       set({ isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });

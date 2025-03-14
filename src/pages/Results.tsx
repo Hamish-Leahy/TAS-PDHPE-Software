@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Medal, Trash2, AlertTriangle, FileText, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Medal, Trash2, AlertTriangle, FileText, Printer, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { generateResultsPDF } from '../components/PDFGenerator';
 
@@ -16,6 +16,12 @@ const Results: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRaces = races.filter(race => 
+    race.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    new Date(race.date).toLocaleDateString().includes(searchQuery)
+  );
 
   useEffect(() => {
     fetchRaces();
@@ -52,7 +58,6 @@ const Results: React.FC = () => {
   const fetchRaceResults = async (raceId: number) => {
     setLoading(true);
     try {
-      // First, get all runners assigned to this race through runner_races
       const { data: assignedRunners, error: assignmentError } = await supabase
         .from('runner_races')
         .select('runner_id')
@@ -60,10 +65,8 @@ const Results: React.FC = () => {
 
       if (assignmentError) throw assignmentError;
 
-      // Get the runner IDs
       const runnerIds = assignedRunners?.map(ar => ar.runner_id) || [];
 
-      // Then fetch the actual runners with their results
       const { data, error } = await supabase
         .from('runners')
         .select('*')
@@ -76,7 +79,6 @@ const Results: React.FC = () => {
       if (data) {
         setResults(data);
         
-        // Calculate house points
         const points: Record<string, number> = {
           'Broughton': 0,
           'Abbott': 0,
@@ -86,7 +88,6 @@ const Results: React.FC = () => {
           'Ross': 0
         };
         
-        // Simple scoring: 10 points for 1st, 9 for 2nd, etc.
         data.forEach((runner, index) => {
           if (index < 10 && runner.house) {
             points[runner.house] += (10 - index);
@@ -106,20 +107,18 @@ const Results: React.FC = () => {
   const exportToCsv = () => {
     if (results.length === 0) return;
     
-    // Create CSV content
     const headers = ['Position', 'Name', 'House', 'Age Group', 'Running Time'];
     const csvContent = [
       headers.join(','),
       ...results.map(runner => [
         runner.position,
-        `"${runner.name}"`, // Quote names to handle commas
+        `"${runner.name}"`,
         runner.house,
         runner.age_group,
         formatRunningTime(runner.running_time_seconds)
       ].join(','))
     ].join('\n');
     
-    // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -137,7 +136,6 @@ const Results: React.FC = () => {
     
     setLoading(true);
     try {
-      // Delete the race
       const { error } = await supabase
         .from('race_events')
         .delete()
@@ -145,7 +143,6 @@ const Results: React.FC = () => {
       
       if (error) throw error;
       
-      // Refresh the races list
       await fetchRaces();
       
       setSuccess('Race deleted successfully');
@@ -180,12 +177,12 @@ const Results: React.FC = () => {
 
   const getHouseBgColor = (house: string) => {
     const colors: Record<string, string> = {
-      'Broughton': 'bg-yellow-500', // Yellow
-      'Abbott': 'bg-blue-900',      // Navy blue
-      'Croft': 'bg-black',          // Black
-      'Tyrrell': 'bg-red-900',      // Maroon
-      'Green': 'bg-red-600',        // Red
-      'Ross': 'bg-green-600'        // Green
+      'Broughton': 'bg-yellow-500',
+      'Abbott': 'bg-blue-900',
+      'Croft': 'bg-black',
+      'Tyrrell': 'bg-red-900',
+      'Green': 'bg-red-600',
+      'Ross': 'bg-green-600'
     };
     return colors[house] || 'bg-gray-500';
   };
@@ -202,16 +199,13 @@ const Results: React.FC = () => {
     
     setGeneratingPDF(true);
     try {
-      // Get the selected race
       const race = races.find(r => r.id === selectedRace);
       if (!race) {
         throw new Error('Race not found');
       }
       
-      // Generate the PDF
       const doc = await generateResultsPDF(race, results);
       
-      // Save the PDF
       doc.save(`TAS_Cross_Country_Results_${race.name.replace(/\s+/g, '_')}.pdf`);
       
       setSuccess('PDF generated successfully');
@@ -230,16 +224,13 @@ const Results: React.FC = () => {
     
     setGeneratingPDF(true);
     try {
-      // Get the selected race
       const race = races.find(r => r.id === selectedRace);
       if (!race) {
         throw new Error('Race not found');
       }
       
-      // Generate the PDF
       const doc = await generateResultsPDF(race, results);
       
-      // Open the PDF in a new window and print
       const pdfData = doc.output('datauristring');
       const printWindow = window.open('', '_blank');
       if (printWindow) {
@@ -254,7 +245,6 @@ const Results: React.FC = () => {
           </html>
         `);
         
-        // Wait for the PDF to load, then print
         setTimeout(() => {
           printWindow.print();
         }, 1000);
@@ -320,7 +310,69 @@ const Results: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold mb-4">Select Race</h2>
+        
+        <div className="mb-4 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Search races by name or date..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {loading && races.length === 0 ? (
+          <div className="text-center py-4">
+            <p>Loading races...</p>
+          </div>
+        ) : races.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 h-[300px] overflow-y-auto pr-2">
+            {filteredRaces.map(race => (
+              <div
+                key={race.id}
+                className={`p-4 border rounded-lg text-left transition-colors cursor-pointer ${
+                  selectedRace === race.id 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+                onClick={() => setSelectedRace(race.id)}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="font-medium">{race.name}</div>
+                    <div className="text-sm text-gray-500">{new Date(race.date).toLocaleDateString()}</div>
+                    <span className={`mt-2 inline-block px-2 py-1 text-xs rounded-full ${
+                      race.status === 'active' ? 'bg-green-100 text-green-800' : 
+                      race.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {race.status}
+                    </span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      confirmDeleteRace(race.id);
+                    }}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-full"
+                    title="Delete race"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <p>No races found. Create a race from the Dashboard.</p>
+          </div>
+        )}
+      </div>
+
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
@@ -358,58 +410,6 @@ const Results: React.FC = () => {
         </div>
       )}
 
-      {/* Race Selector */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Select Race</h2>
-        {loading && races.length === 0 ? (
-          <div className="text-center py-4">
-            <p>Loading races...</p>
-          </div>
-        ) : races.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {races.map(race => (
-              <div
-                key={race.id}
-                className={`p-4 border rounded-lg text-left transition-colors ${
-                  selectedRace === race.id 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <button 
-                    onClick={() => setSelectedRace(race.id)}
-                    className="flex-1 text-left"
-                  >
-                    <div className="font-medium">{race.name}</div>
-                    <div className="text-sm text-gray-500">{new Date(race.date).toLocaleDateString()}</div>
-                    <span className={`mt-2 inline-block px-2 py-1 text-xs rounded-full ${
-                      race.status === 'active' ? 'bg-green-100 text-green-800' : 
-                      race.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {race.status}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => confirmDeleteRace(race.id)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-full"
-                    title="Delete race"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <p>No races found. Create a race from the Dashboard.</p>
-          </div>
-        )}
-      </div>
-
-      {/* House Results */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">House Results</h2>
         {selectedRace ? (
@@ -436,7 +436,6 @@ const Results: React.FC = () => {
         )}
       </div>
 
-      {/* Individual Results */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Individual Results</h2>
         {loading ? (
@@ -503,7 +502,6 @@ const Results: React.FC = () => {
         )}
       </div>
 
-      {/* PDF Features Section */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Results Export Options</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRaceStore } from '../store/raceStore';
-import { ArrowLeft, Undo2, Save, Search, Clock, X, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Undo2, Save, Search, Clock, X, CheckCircle, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -26,43 +26,60 @@ const FinishLine: React.FC = () => {
   const [runningTime, setRunningTime] = useState({ minutes: '', seconds: '' });
   const [placement, setPlacement] = useState('');
   const [recordError, setRecordError] = useState<string | null>(null);
+  const [ageGroupFilter, setAgeGroupFilter] = useState<string>('');
+  const [showFilters, setShowFilters] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const minutesInputRef = useRef<HTMLInputElement>(null);
+
+  const ageGroups = [
+    'Under 11',
+    'Under 12',
+    'Under 13',
+    'Under 14',
+    'Under 15',
+    'Under 16',
+    'Under 17',
+    'Under 18',
+    'Open'
+  ];
 
   useEffect(() => {
     if (currentRace.id) {
       fetchRaceRunners();
     }
-    // Focus the input field when the component mounts
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [currentRace.id]);
+  }, [currentRace.id, ageGroupFilter]);
 
   const fetchRaceRunners = async () => {
     try {
-      // First get all runners assigned to this race
-      const { data: assignedRunners, error: assignmentError } = await supabase
+      let query = supabase
         .from('runner_races')
         .select('runner_id')
         .eq('race_id', currentRace.id);
 
+      const { data: assignedRunners, error: assignmentError } = await query;
+
       if (assignmentError) throw assignmentError;
 
-      // Get the runner IDs
       const runnerIds = assignedRunners?.map(ar => ar.runner_id) || [];
 
-      // Then fetch the actual runners
-      const { data: raceRunners, error: runnersError } = await supabase
+      let runnersQuery = supabase
         .from('runners')
         .select('*')
         .in('id', runnerIds);
 
+      if (ageGroupFilter) {
+        runnersQuery = runnersQuery.eq('age_group', ageGroupFilter);
+      }
+
+      const { data: raceRunners, error: runnersError } = await runnersQuery;
+
       if (runnersError) throw runnersError;
 
-      // Update the store with race-specific runners
       if (raceRunners) {
-        await fetchRunners(selectedAgeGroup, raceRunners);
+        await fetchRunners(ageGroupFilter, raceRunners);
       }
     } catch (err) {
       console.error('Error fetching race runners:', err);
@@ -79,7 +96,6 @@ const FinishLine: React.FC = () => {
     }
   }, [searchQuery]);
 
-  // Focus minutes input when modal opens
   useEffect(() => {
     if (showTimeModal && minutesInputRef.current) {
       setTimeout(() => {
@@ -95,7 +111,6 @@ const FinishLine: React.FC = () => {
     }
 
     try {
-      // First get runners assigned to this race
       const { data: assignedRunners } = await supabase
         .from('runner_races')
         .select('runner_id')
@@ -103,7 +118,6 @@ const FinishLine: React.FC = () => {
 
       const runnerIds = assignedRunners?.map(ar => ar.runner_id) || [];
 
-      // Then search within those runners
       const { data, error } = await supabase
         .from('runners')
         .select('*')
@@ -125,14 +139,11 @@ const FinishLine: React.FC = () => {
     e.preventDefault();
     setRecordError(null);
     
-    // If there's a search query but no selected runner, try to find a match
     if (searchQuery && !selectedRunner) {
-      // Try to find a match by name
       const matchingRunner = runners.find(r => 
         r.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
       
-      // If no exact match, try the first search result
       if (!matchingRunner && searchResults.length > 0) {
         setSelectedRunner(searchResults[0]);
         setShowTimeModal(true);
@@ -147,10 +158,8 @@ const FinishLine: React.FC = () => {
     }
     
     if (selectedRunner) {
-      // Show the time modal instead of immediately recording
       setShowTimeModal(true);
     } else if (searchQuery) {
-      // If we have a search query but no match was found
       setRecordError("No runner found matching that search. Please try again or select from the list.");
     } else {
       setRecordError("Please enter a runner name or select a runner from the list.");
@@ -166,19 +175,15 @@ const FinishLine: React.FC = () => {
     }
     
     try {
-      // Calculate total seconds from minutes and seconds
       const totalMinutes = parseInt(runningTime.minutes) || 0;
       const totalSeconds = parseInt(runningTime.seconds) || 0;
       const totalTimeInSeconds = (totalMinutes * 60) + totalSeconds;
       
-      // Create a timestamp
       const now = new Date();
       const timestamp = now.toISOString();
       
-      // Calculate position from placement input or use next available position
       const position = placement ? parseInt(placement) : finishOrder.length + 1;
       
-      // Update in database with custom time and position
       const { error } = await supabase
         .from('runners')
         .update({ 
@@ -190,21 +195,17 @@ const FinishLine: React.FC = () => {
       
       if (error) throw error;
       
-      // Refresh the runners list
       await fetchRunners(selectedAgeGroup);
       
-      // Clear form and close modal
       setRunningTime({ minutes: '', seconds: '' });
       setPlacement('');
       setShowTimeModal(false);
       setSelectedRunner(null);
       
-      // Re-focus the search input
       if (inputRef.current) {
         inputRef.current.focus();
       }
       
-      // Clear search
       setSearchQuery('');
       setSearchResults([]);
       setShowSearchResults(false);
@@ -272,17 +273,6 @@ const FinishLine: React.FC = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const ageGroups = [
-    'Under 11',
-    'Under 12',
-    'Under 13',
-    'Under 14',
-    'Under 15',
-    'Under 16',
-    'Under 17',
-    'Under 18'
-  ];
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -296,6 +286,13 @@ const FinishLine: React.FC = () => {
           <h1 className="text-2xl font-bold">Finish Line Recording</h1>
         </div>
         <div className="flex space-x-2">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded flex items-center"
+          >
+            <Filter size={18} className="mr-2" />
+            Filters
+          </button>
           <button
             onClick={handleUndoLastFinish}
             disabled={finishOrder.length === 0 || isLoading}
@@ -313,7 +310,6 @@ const FinishLine: React.FC = () => {
         </div>
       </div>
 
-      {/* Race Info */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">
@@ -327,35 +323,33 @@ const FinishLine: React.FC = () => {
           </span>
         </div>
 
-        {/* Age Group Filter */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Filter by Age Group
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedAgeGroup('')}
-              className={`px-4 py-2 rounded-md border ${
-                selectedAgeGroup === '' ? 'bg-blue-100 border-blue-500' : 'bg-white border-gray-300'
-              }`}
-            >
-              All
-            </button>
-            {ageGroups.map(group => (
+        {showFilters && (
+          <div className="mb-6 border-t pt-4">
+            <h3 className="text-lg font-medium mb-3">Filters</h3>
+            <div className="flex flex-wrap gap-2">
               <button
-                key={group}
-                onClick={() => setSelectedAgeGroup(group)}
+                onClick={() => setAgeGroupFilter('')}
                 className={`px-4 py-2 rounded-md border ${
-                  selectedAgeGroup === group ? 'bg-blue-100 border-blue-500' : 'bg-white border-gray-300'
+                  ageGroupFilter === '' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-white border-gray-300 text-gray-700'
                 }`}
               >
-                {group}
+                All Ages
               </button>
-            ))}
+              {ageGroups.map(group => (
+                <button
+                  key={group}
+                  onClick={() => setAgeGroupFilter(group)}
+                  className={`px-4 py-2 rounded-md border ${
+                    ageGroupFilter === group ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-white border-gray-300 text-gray-700'
+                  }`}
+                >
+                  {group}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Runner Search and Selection */}
         <div className="mb-6">
           <form onSubmit={handleRecordFinish} className="mb-4">
             <div className="flex flex-col md:flex-row gap-4">
@@ -439,7 +433,6 @@ const FinishLine: React.FC = () => {
           </form>
         </div>
 
-        {/* Time and Placement Modal */}
         {showTimeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
@@ -539,7 +532,6 @@ const FinishLine: React.FC = () => {
           </div>
         )}
 
-        {/* Finish Order */}
         <div>
           <h3 className="text-lg font-medium mb-3">Finish Order</h3>
           {finishOrder.length > 0 ? (
@@ -605,7 +597,6 @@ const FinishLine: React.FC = () => {
         </div>
       </div>
 
-      {/* Remaining Runners */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Remaining Runners</h2>
         {runners.filter(r => r.finish_time === null).length > 0 ? (
@@ -661,7 +652,6 @@ const FinishLine: React.FC = () => {
         )}
       </div>
 
-      {/* Instructions */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Instructions</h2>
         <div className="space-y-4">
