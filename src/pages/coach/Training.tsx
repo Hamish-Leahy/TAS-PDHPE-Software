@@ -8,6 +8,8 @@ import {
   RefreshCw,
   X,
   Check,
+  ChevronLeft,
+  ChevronRight,
   AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -35,6 +37,7 @@ const Training = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string>('');
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -49,7 +52,7 @@ const Training = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentDate]);
 
   const fetchData = async () => {
     setRefreshing(true);
@@ -68,31 +71,69 @@ const Training = () => {
   };
 
   const fetchSessions = async () => {
-    const { data, error } = await supabase
-      .from('training_sessions')
-      .select(`
-        *,
-        team:teams (
-          name,
-          sport,
-          age_group
-        )
-      `)
-      .order('date')
-      .order('start_time');
+    try {
+      // Get current coach's email
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-    if (error) throw error;
-    setSessions(data || []);
+      // Get coach's ID
+      const { data: coachData } = await supabase
+        .from('coaches')
+        .select('id')
+        .eq('email', session.user.email)
+        .single();
+
+      if (!coachData) return;
+
+      // Get start and end of current month
+      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+      // Fetch sessions for teams where user is coach or assistant coach
+      const { data, error } = await supabase
+        .from('training_sessions')
+        .select(`
+          *,
+          team:teams (
+            name,
+            sport,
+            age_group
+          )
+        `)
+        .gte('date', startOfMonth.toISOString().split('T')[0])
+        .lte('date', endOfMonth.toISOString().split('T')[0])
+        .in('team_id', `(
+          SELECT id FROM teams 
+          WHERE coach_id = '${coachData.id}' 
+          OR assistant_coach_id = '${coachData.id}'
+        )`);
+
+      if (error) throw error;
+      setSessions(data || []);
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+      setError('Failed to fetch training sessions');
+    }
   };
 
   const fetchTeams = async () => {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('*')
-      .order('name');
+    try {
+      // Get current coach's email
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-    if (error) throw error;
-    setTeams(data || []);
+      // Get teams where user is coach or assistant coach
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .or(`coach_id.eq.(SELECT id FROM coaches WHERE email = '${session.user.email}'),assistant_coach_id.eq.(SELECT id FROM coaches WHERE email = '${session.user.email}')`)
+        .order('name');
+
+      if (error) throw error;
+      setTeams(data || []);
+    } catch (err) {
+      console.error('Error fetching teams:', err);
+    }
   };
 
   const handleAddSession = async (e: React.FormEvent) => {
@@ -161,35 +202,128 @@ const Training = () => {
     }
   };
 
-  const groupSessionsByDate = () => {
-    const grouped: Record<string, TrainingSession[]> = {};
-    sessions.forEach(session => {
-      if (!grouped[session.date]) {
-        grouped[session.date] = [];
-      }
-      grouped[session.date].push(session);
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const getSessionsForDay = (day: number) => {
+    return sessions.filter(session => {
+      const sessionDate = new Date(session.date);
+      return sessionDate.getDate() === day;
     });
-    return grouped;
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      if (direction === 'prev') {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else {
+        newDate.setMonth(newDate.getMonth() + 1);
+      }
+      return newDate;
+    });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled':
-        return 'bg-blue-100 text-blue-800';
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'cancelled':
         return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-blue-100 text-blue-800';
     }
   };
 
-  const filteredSessions = selectedTeam
-    ? sessions.filter(session => session.team_id === selectedTeam)
-    : sessions;
+  const renderCalendar = () => {
+    const daysInMonth = getDaysInMonth(currentDate);
+    const firstDay = getFirstDayOfMonth(currentDate);
+    const weeks = Math.ceil((daysInMonth + firstDay) / 7);
+    const monthName = currentDate.toLocaleString('default', { month: 'long' });
+    const year = currentDate.getFullYear();
 
-  const groupedSessions = groupSessionsByDate();
+    return (
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+          <button
+            onClick={() => navigateMonth('prev')}
+            className="p-2 hover:bg-gray-200 rounded-full"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <h2 className="text-xl font-semibold">
+            {monthName} {year}
+          </h2>
+          <button
+            onClick={() => navigateMonth('next')}
+            className="p-2 hover:bg-gray-200 rounded-full"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-px bg-gray-200">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="bg-gray-50 p-2 text-center text-sm font-medium">
+              {day}
+            </div>
+          ))}
+
+          {Array.from({ length: weeks * 7 }).map((_, index) => {
+            const day = index - firstDay + 1;
+            const isValidDay = day > 0 && day <= daysInMonth;
+            const sessionsForDay = isValidDay ? getSessionsForDay(day) : [];
+            const isToday = isValidDay && 
+              day === new Date().getDate() && 
+              currentDate.getMonth() === new Date().getMonth() &&
+              currentDate.getFullYear() === new Date().getFullYear();
+
+            return (
+              <div 
+                key={index}
+                className={`bg-white p-2 min-h-[120px] ${
+                  isValidDay ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-50'
+                } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+              >
+                {isValidDay && (
+                  <>
+                    <div className={`text-sm font-medium mb-1 ${isToday ? 'text-blue-600' : ''}`}>
+                      {day}
+                    </div>
+                    <div className="space-y-1">
+                      {sessionsForDay.map(session => (
+                        <div
+                          key={session.id}
+                          className="p-1 text-xs rounded bg-blue-50 border border-blue-100"
+                        >
+                          <div className="font-medium text-blue-900 truncate">
+                            {session.team.name}
+                          </div>
+                          <div className="text-blue-700 flex items-center">
+                            <Clock size={12} className="mr-1" />
+                            {session.start_time.slice(0, 5)}
+                          </div>
+                          <div className="text-blue-700 flex items-center">
+                            <MapPin size={12} className="mr-1" />
+                            {session.location}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -224,6 +358,16 @@ const Training = () => {
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
           {success}
         </div>
+      )}
+
+      {/* Calendar View */}
+      {loading ? (
+        <div className="text-center py-8">
+          <CalendarIcon size={48} className="mx-auto text-gray-400 mb-4" />
+          <p className="text-gray-500">Loading calendar...</p>
+        </div>
+      ) : (
+        renderCalendar()
       )}
 
       {/* Add Session Modal */}
@@ -335,101 +479,31 @@ const Training = () => {
         </div>
       )}
 
-      {/* Filters */}
+      {/* Instructions */}
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="flex items-center space-x-4">
-          <select
-            value={selectedTeam}
-            onChange={(e) => setSelectedTeam(e.target.value)}
-            className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          >
-            <option value="">All Teams</option>
-            {teams.map(team => (
-              <option key={team.id} value={team.id}>
-                {team.name} - {team.sport}
-              </option>
-            ))}
-          </select>
+        <h2 className="text-xl font-semibold mb-4">Calendar Instructions</h2>
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-medium text-lg">Managing Training Sessions</h3>
+            <ul className="list-disc list-inside space-y-2 pl-4 mt-2">
+              <li>Click "Add Session" to schedule a new training</li>
+              <li>Select a team and set the date, time, and location</li>
+              <li>View all your team's training sessions in the calendar</li>
+              <li>Click on a session to view details or make changes</li>
+              <li>Use the navigation arrows to move between months</li>
+            </ul>
+          </div>
+          
+          <div className="bg-blue-50 p-4 rounded-md">
+            <h3 className="font-medium text-blue-800">Tips</h3>
+            <ul className="list-disc list-inside space-y-2 pl-4 mt-2 text-blue-700">
+              <li>Plan sessions in advance to ensure facility availability</li>
+              <li>Check for conflicts with other team schedules</li>
+              <li>Consider weather conditions for outdoor trainings</li>
+              <li>Allow adequate rest time between sessions</li>
+            </ul>
+          </div>
         </div>
-      </div>
-
-      {/* Calendar View */}
-      <div className="space-y-6">
-        {Object.entries(groupedSessions).map(([date, sessions]) => (
-          <div key={date} className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gray-50 px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold">
-                {new Date(date).toLocaleDateString(undefined, { 
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {sessions.map(session => (
-                  <div key={session.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="text-lg font-medium">{session.team.name}</h4>
-                        <p className="text-sm text-gray-500">{session.team.sport} - {session.team.age_group}</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(session.status)}`}>
-                        {session.status}
-                      </span>
-                    </div>
-                    
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center text-gray-600">
-                        <Clock size={16} className="mr-2" />
-                        {session.start_time} - {session.end_time}
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <MapPin size={16} className="mr-2" />
-                        {session.location}
-                      </div>
-                      {session.description && (
-                        <p className="text-gray-600 mt-2">{session.description}</p>
-                      )}
-                    </div>
-
-                    <div className="mt-4 flex justify-between items-center">
-                      <div className="space-x-2">
-                        <button
-                          onClick={() => handleUpdateStatus(session.id, 'completed')}
-                          className="px-3 py-1 bg-green-100 text-green-800 rounded-md hover:bg-green-200"
-                        >
-                          Mark Complete
-                        </button>
-                        <button
-                          onClick={() => handleUpdateStatus(session.id, 'cancelled')}
-                          className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteSession(session.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {filteredSessions.length === 0 && (
-          <div className="bg-white rounded-lg shadow-md p-6 text-center">
-            <CalendarIcon size={48} className="mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-500">No training sessions found</p>
-          </div>
-        )}
       </div>
     </div>
   );

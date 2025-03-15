@@ -31,25 +31,22 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <img
           className="mx-auto h-20"
-          src="https://boardingexpo.com.au/wp-content/uploads/TAS_Logo_ExtHoriz_FullCol_RGB.jpg"
+          src="https://as.edu.au/wp-content/webp-express/webp-images/uploads/2025/01/TAS_Logo_Horiz_Straw_PMS-713x375.png.webp"
           alt="TAS Logo"
         />
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          TAS Cross Country
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-gray-400">
           Sign in with your TAS email address
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-700">
           {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            <div className="mb-4 bg-red-900 bg-opacity-50 border border-red-700 text-red-200 px-4 py-3 rounded-md">
               {error}
             </div>
           )}
@@ -63,12 +60,22 @@ const Login = () => {
                   colors: {
                     brand: '#1e40af',
                     brandAccent: '#1e3a8a',
+                    inputBackground: 'rgb(31, 41, 55)',
+                    inputText: 'white',
+                    inputBorder: 'rgb(75, 85, 99)',
+                    inputLabelText: 'rgb(156, 163, 175)',
+                    inputPlaceholder: 'rgb(107, 114, 128)',
                   },
                 },
               },
+              className: {
+                input: 'bg-gray-700 border-gray-600 text-white placeholder-gray-400',
+                label: 'text-gray-300',
+                button: 'bg-blue-600 hover:bg-blue-700 text-white',
+              },
             }}
             providers={[]}
-            theme="default"
+            theme="dark"
             localization={{
               variables: {
                 sign_in: {

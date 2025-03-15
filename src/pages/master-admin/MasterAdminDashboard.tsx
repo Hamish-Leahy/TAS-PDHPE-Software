@@ -13,9 +13,17 @@ type View = 'status' | 'security' | 'users' | 'settings' | 'notifications';
 const MasterAdminDashboard = () => {
   const [currentView, setCurrentView] = useState<View>('status');
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [systemHealth, setSystemHealth] = useState({
+    cpu: Math.random() * 60 + 20, // Simulated values between 20-80%
+    memory: Math.random() * 60 + 20,
+    storage: Math.random() * 40 + 10, // Lower storage usage 10-50%
+    uptime: 0 // Will be set from Supabase
+  });
 
   useEffect(() => {
     fetchUnreadNotifications();
+    fetchSystemHealth();
+    startHealthCheck();
   }, []);
 
   const fetchUnreadNotifications = async () => {
@@ -30,6 +38,50 @@ const MasterAdminDashboard = () => {
     } catch (err) {
       console.error('Error fetching notifications:', err);
     }
+  };
+
+  const fetchSystemHealth = async () => {
+    try {
+      // Get Supabase instance start time from platform_status
+      const { data: platformData } = await supabase
+        .from('platform_status')
+        .select('last_updated')
+        .eq('platform', 'master_admin')
+        .single();
+
+      if (platformData) {
+        const startTime = new Date(platformData.last_updated);
+        const now = new Date();
+        const uptimeMinutes = Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60));
+
+        setSystemHealth(prev => ({
+          ...prev,
+          uptime: uptimeMinutes
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching system health:', err);
+    }
+  };
+
+  const startHealthCheck = () => {
+    // Update simulated metrics and fetch real uptime every 5 seconds
+    const interval = setInterval(() => {
+      setSystemHealth(prev => ({
+        cpu: Math.min(95, Math.max(5, prev.cpu + (Math.random() - 0.5) * 10)),
+        memory: Math.min(95, Math.max(5, prev.memory + (Math.random() - 0.5) * 8)),
+        storage: Math.min(95, Math.max(5, prev.storage + (Math.random() - 0.5) * 2)),
+        uptime: prev.uptime + 1 // Increment uptime by 1 minute
+      }));
+    }, 5000);
+
+    // Fetch real uptime every minute
+    const uptimeInterval = setInterval(fetchSystemHealth, 60000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(uptimeInterval);
+    };
   };
 
   const handleLogout = () => {
@@ -48,7 +100,7 @@ const MasterAdminDashboard = () => {
   const renderView = () => {
     switch (currentView) {
       case 'status':
-        return <SystemStatus />;
+        return <SystemStatus systemHealth={systemHealth} />;
       case 'security':
         return <SecurityLogs />;
       case 'users':
@@ -58,7 +110,7 @@ const MasterAdminDashboard = () => {
       case 'notifications':
         return <Notifications onNotificationRead={fetchUnreadNotifications} />;
       default:
-        return <SystemStatus />;
+        return <SystemStatus systemHealth={systemHealth} />;
     }
   };
 
@@ -124,16 +176,20 @@ const MasterAdminDashboard = () => {
               <h3 className="text-lg font-semibold text-white mb-4">System Overview</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Active Platforms</span>
-                  <span className="text-white">4</span>
+                  <span className="text-gray-400">CPU Usage</span>
+                  <span className="text-white">{Math.round(systemHealth.cpu)}%</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Total Users</span>
-                  <span className="text-white">150+</span>
+                  <span className="text-gray-400">Memory Usage</span>
+                  <span className="text-white">{Math.round(systemHealth.memory)}%</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">System Status</span>
-                  <span className="text-green-400">Operational</span>
+                  <span className="text-gray-400">Storage</span>
+                  <span className="text-white">{Math.round(systemHealth.storage)}%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Uptime</span>
+                  <span className="text-white">{Math.floor(systemHealth.uptime / 60)}h {systemHealth.uptime % 60}m</span>
                 </div>
               </div>
             </div>

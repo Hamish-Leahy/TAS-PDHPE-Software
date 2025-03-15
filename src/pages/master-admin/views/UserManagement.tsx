@@ -32,13 +32,13 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     setRefreshing(true);
     try {
-      const { data, error } = await supabase
+      const { data: activeUsers, error: activeError } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setUsers(data || []);
+      if (activeError) throw activeError;
+      setUsers(activeUsers || []);
     } catch (err) {
       console.error('Error fetching users:', err);
       setError('Failed to fetch users');
@@ -73,7 +73,7 @@ const UserManagement = () => {
         throw new Error('Failed to create user');
       }
 
-      // Create user record in our database
+      // Create user record
       const { error: dbError } = await supabase
         .from('users')
         .insert([{
@@ -87,8 +87,9 @@ const UserManagement = () => {
       // Log the action
       await supabase.from('admin_logs').insert([{
         action: 'create_user',
+        user_id: authData.user.id,
         details: JSON.stringify({
-          created_user: newUser.email,
+          email: newUser.email,
           role: newUser.role
         })
       }]);
@@ -107,6 +108,11 @@ const UserManagement = () => {
     if (selectedUsers.length === 0) return;
     
     try {
+      // Delete users from auth
+      for (const userId of selectedUsers) {
+        await supabase.auth.admin.deleteUser(userId);
+      }
+
       // Delete from our database
       const { error: dbError } = await supabase
         .from('users')
@@ -118,6 +124,7 @@ const UserManagement = () => {
       // Log the action
       await supabase.from('admin_logs').insert([{
         action: 'delete_users',
+        user_id: 'system',
         details: JSON.stringify({
           deleted_users: selectedUsers.length
         })
@@ -145,8 +152,8 @@ const UserManagement = () => {
       // Log the action
       await supabase.from('admin_logs').insert([{
         action: 'change_user_role',
+        user_id: userId,
         details: JSON.stringify({
-          target_user: userId,
           new_role: newRole
         })
       }]);

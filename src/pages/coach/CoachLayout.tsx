@@ -1,6 +1,6 @@
 import React, { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Dumbbell, Users, Calendar, ClipboardCheck, FileText, LogOut, HelpCircle, Grid } from 'lucide-react';
+import { Dumbbell, Users, Calendar, ClipboardCheck, FileText, LogOut, HelpCircle, Grid, MessageSquare, Clock8, Ban as Bandage, Box } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import WaffleMenu from '../../components/WaffleMenu';
 import ServiceDisabledOverlay from '../../components/ServiceDisabledOverlay';
@@ -22,6 +22,10 @@ const CoachLayout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/coach/training', label: 'Training', icon: <Calendar size={20} /> },
     { path: '/coach/attendance', label: 'Attendance', icon: <ClipboardCheck size={20} /> },
     { path: '/coach/plans', label: 'Training Plans', icon: <FileText size={20} /> },
+    { path: '/coach/communications', label: 'Communications', icon: <MessageSquare size={20} /> },
+    { path: '/coach/timesheets', label: 'Timesheets', icon: <Clock8 size={20} /> },
+    { path: '/coach/incidents', label: 'Incidents', icon: <Bandage size={20} /> },
+    { path: '/coach/resources', label: 'Resources', icon: <Box size={20} /> }
   ];
 
   const handleSignOut = async () => {
