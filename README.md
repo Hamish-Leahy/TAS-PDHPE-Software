@@ -1,7 +1,5 @@
 # TAS Cross Country System
 
-A comprehensive cross country race management system built for The Armidale School, featuring real-time race tracking, house points management, and administrative controls.
-
 ## Features
 
 ### Race Management
