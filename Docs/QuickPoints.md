@@ -1,5 +1,6 @@
 # Quick Points Feature
 
+
 ## Overview
 The Quick Points feature allows users to quickly add points to houses as runners finish races.
 
