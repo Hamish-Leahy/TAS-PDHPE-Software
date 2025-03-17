@@ -32,6 +32,7 @@ const FinishLine: React.FC = () => {
   const minutesInputRef = useRef<HTMLInputElement>(null);
 
   const ageGroups = [
+    'Under 10'
     'Under 11',
     'Under 12',
     'Under 13',
