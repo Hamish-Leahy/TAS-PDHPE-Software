@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Flag, Shield, Activity, Dumbbell, Timer, School as Pool } from 'lucide-react';
+import { Flag, Shield, Activity, Dumbbell, Timer, School as Pool, Waves, Mountain, Clock } from 'lucide-react';
 
 interface AppItem {
   path: string;
@@ -59,6 +59,28 @@ const apps: AppItem[] = [
     description: 'Swimming time trials and events',
     icon: <Pool className="w-6 h-6" />,
     iconColor: 'text-cyan-600'
+  },
+  // Row 3
+  {
+    path: '/ocean-swim',
+    name: 'Ocean Swim',
+    description: 'Ocean swimming program',
+    icon: <Waves className="w-6 h-6" />,
+    iconColor: 'text-blue-600'
+  },
+  {
+    path: '/city2surf',
+    name: 'City2Surf',
+    description: 'City2Surf training program',
+    icon: <Mountain className="w-6 h-6" />,
+    iconColor: 'text-purple-600'
+  },
+  {
+    path: '/19for19',
+    name: '19 For 19',
+    description: '19-minute daily challenge',
+    icon: <Clock className="w-6 h-6" />,
+    iconColor: 'text-red-600'
   }
 ];
 
@@ -97,7 +119,24 @@ const WaffleMenu: React.FC<WaffleMenuProps> = ({ isOpen, onClose }) => {
             </div>
             {/* Row 2 */}
             <div className="col-span-3 grid grid-cols-3 gap-4">
-              {apps.slice(3).map((app) => (
+              {apps.slice(3, 6).map((app) => (
+                <Link
+                  key={app.path}
+                  to={app.path}
+                  onClick={onClose}
+                  className="flex flex-col p-4 rounded-lg hover:bg-blue-50 text-gray-700 border border-gray-100 hover:border-blue-200 transition-colors"
+                >
+                  <div className={`${app.iconColor} mb-2`}>
+                    {app.icon}
+                  </div>
+                  <div className="font-medium">{app.name}</div>
+                  <div className="text-sm text-gray-500">{app.description}</div>
+                </Link>
+              ))}
+            </div>
+            {/* Row 3 */}
+            <div className="col-span-3 grid grid-cols-3 gap-4">
+              {apps.slice(6).map((app) => (
                 <Link
                   key={app.path}
                   to={app.path}

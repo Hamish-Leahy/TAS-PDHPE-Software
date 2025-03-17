@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabase';
 const MasterAdmin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  // State to manage authentication status and error messages
   const [authenticated, setAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +19,6 @@ const MasterAdmin = () => {
     checkAuthentication();
   }, []);
 
-  // Function to check user authentication
   const checkAuthentication = async () => {
     try {
       const { data } = await supabase
@@ -48,41 +46,36 @@ const MasterAdmin = () => {
     }
   };
 
-  // Function to handle user login
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent default form submission
-    setError(null); // Reset error state
+    e.preventDefault();
+    setError(null);
 
     try {
-      // Fetch stored credentials from the database
       const { data } = await supabase
         .from('master_admin_settings')
         .select('key, value')
         .in('key', ['master_admin_username', 'master_admin_password']);
 
       if (data) {
-        // Extract stored username and password
         const storedCredentials = {
           username: data.find(d => d.key === 'master_admin_username')?.value,
           password: data.find(d => d.key === 'master_admin_password')?.value
         };
 
-        // Check if entered credentials match stored credentials
         if (username === storedCredentials.username && password === storedCredentials.password) {
-          setAuthenticated(true); // Set authenticated state to true
-          sessionStorage.setItem('masterAdminAuth', 'true'); // Store authentication status in session
-          fetchPlatforms(); // Fetch platform data after successful login
+          setAuthenticated(true);
+          sessionStorage.setItem('masterAdminAuth', 'true');
+          fetchPlatforms();
         } else {
-          setError('Invalid credentials'); // Set error message for invalid credentials
+          setError('Invalid credentials');
         }
       }
     } catch (err) {
-      console.error('Error logging in:', err); // Log error to console
-      setError('Authentication failed'); // Set error message for authentication failure
+      console.error('Error logging in:', err);
+      setError('Authentication failed');
     }
   };
 
-  // Function to fetch platform data
   const fetchPlatforms = async () => {
     try {
       const { data } = await supabase
@@ -90,9 +83,9 @@ const MasterAdmin = () => {
         .select('*')
         .order('platform');
 
-      setPlatforms(data || []); // Update state with fetched platform data
+      setPlatforms(data || []);
     } catch (err) {
-      console.error('Error fetching platforms:', err); // Log error to console
+      console.error('Error fetching platforms:', err);
     }
   };
 
@@ -123,7 +116,6 @@ const MasterAdmin = () => {
     }
   };
 
-  // Function to handle emergency killswitch
   const handleKillswitch = async () => {
     if (!killswitchMessage) {
       setError('Please provide a message for users');

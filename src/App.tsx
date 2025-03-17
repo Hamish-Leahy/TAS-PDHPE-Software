@@ -6,6 +6,9 @@ import BiometricsApp from './pages/biometrics/BiometricsApp';
 import CoachApp from './pages/coach/CoachApp';
 import AthleticsApp from './pages/athletics/AthleticsApp';
 import SwimmingApp from './pages/swimming/SwimmingApp';
+import OceanSwimApp from './pages/ocean-swim/OceanSwimApp';
+import City2SurfApp from './pages/city2surf/City2SurfApp';
+import NineteenApp from './pages/nineteen/NineteenApp';
 import Login from './pages/auth/Login';
 import PrivateRoute from './components/PrivateRoute';
 import { supabase } from './lib/supabase';
@@ -71,6 +74,30 @@ function App() {
           element={
             <PrivateRoute>
               <SwimmingApp />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/ocean-swim/*"
+          element={
+            <PrivateRoute>
+              <OceanSwimApp />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/city2surf/*"
+          element={
+            <PrivateRoute>
+              <City2SurfApp />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/19for19/*"
+          element={
+            <PrivateRoute>
+              <NineteenApp />
             </PrivateRoute>
           }
         />
