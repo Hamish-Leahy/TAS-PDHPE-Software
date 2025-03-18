@@ -1,6 +1,7 @@
 ## License Agreement
 
-This software and its associated documentation (the "Software") are owned by Hamish Leahy (the "Licensor"). By using this Software, you agree to the following terms and conditions:
+This software and its associated documentation (the "Software") are owned by Hamish Leahy (the "Licensor"). By using this Software, you agree to the following terms and conditions and therefore cannot be broken:
+
 
 ### 1. Grant of License
 The Licensor grants you a non-exclusive, non-transferable license to use the Software solely for your personal or internal business purposes. You may not distribute, sell, or lease the Software to any third party.
